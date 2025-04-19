@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lingus Web</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        h1 {
+            margin-top: 0;
+        }
+
+        .file-list {
+            margin-top: 20px;
+        }
+
+        .file-list ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .file-list li {
+            margin: 10px 0;
+        }
+
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<h1>Lingus Web</h1>
+<p>Upload files to convert them to Markdown.</p>
+<input type="file" id="fileInput" multiple>
+<button onclick="processFiles()">Process</button>
+<div id="status"></div>
+<div id="fileList" class="file-list"></div>
+
+<script>
+    function changeFileExtension(filename, extension) {
+        const lastDotIndex = filename.lastIndexOf('.');
+        if (lastDotIndex === -1 || lastDotIndex === 0) {
+            return filename + "." + extension;
+        }
+        return filename.substring(0, lastDotIndex) + "." + extension;
+    }
+
+    async function processFiles() {
+        const fileInput = document.getElementById("fileInput");
+        const status = document.getElementById("status");
+        const fileList = document.getElementById("fileList");
+
+        if (!fileInput.files.length) {
+            status.innerHTML = `<p class="error">Please select at least one file.</p>`;
+            return;
+        }
+
+        const formData = new FormData();
+        Array.from(fileInput.files).forEach(file => {
+            formData.append("files", file);
+        });
+
+        status.innerHTML = "<p>Processing...</p>";
+
+        try {
+            const response = await fetch("/api/process-files", {
+                method: "POST",
+                body: formData,
+                signal: AbortSignal.timeout(6000000)
+            });
+
+            if (!response.ok) {
+                status.innerHTML = "<p class='error'>API call failed.</p>";
+            }
+
+            const data = await response.json();
+            status.innerHTML = "<p>Files processed successfully!</p>";
+
+            fileList.innerHTML = "<h2>Processed Files</h2><ul>" +
+                data.files.map(filename =>
+                    `<li><a href="/api/download-file/${encodeURIComponent(filename)}" download="${changeFileExtension(filename, "md")}">${filename}</a></li>`
+                ).join('') + "</ul>";
+        } catch (error) {
+            status.innerHTML = `<p class="error">An unexpected error occurred: ${error}</p>`;
+        }
+    }
+</script>
+</body>
+</html>
